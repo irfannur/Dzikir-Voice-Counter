@@ -21,18 +21,22 @@ async function load(req: LoadReq) {
   const { pipeline, env } = await import('@huggingface/transformers')
 
   // Check if local model files exist in /models/<model_id>/ (e.g. from public/models)
+  // Must return 200/206 and be JSON (not an HTML SPA 404 fallback like on Cloudflare Pages)
   try {
-    const localCheck = await fetch(`/models/${req.model}/config.json`, { method: 'HEAD' })
-    env.allowLocalModels = localCheck.ok
+    const localCheck = await fetch(`/models/${req.model}/config.json`, { method: 'GET', headers: { Range: 'bytes=0-10' } })
+    const ct = localCheck.headers.get('content-type') || ''
+    env.allowLocalModels = (localCheck.ok || localCheck.status === 206) && !ct.includes('text/html')
   } catch {
     env.allowLocalModels = false
   }
 
   // Prefer locally served ONNX runtime files (copied by scripts/copy-ort-wasm.mjs)
   // so inference does not depend on a CDN once the PWA has cached them.
+  // Guard against HTML SPA fallback on static hosts like Cloudflare Pages.
   try {
     const r = await fetch('/ort/manifest.json')
-    if (r.ok) {
+    const ct = r.headers.get('content-type') || ''
+    if (r.ok && !ct.includes('text/html')) {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const wasm = (env.backends as any).onnx?.wasm
       if (wasm) wasm.wasmPaths = new URL('/ort/', self.location.origin).href

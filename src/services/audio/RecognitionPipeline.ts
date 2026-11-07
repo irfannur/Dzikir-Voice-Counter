@@ -37,6 +37,9 @@ export class RecognitionPipeline {
   ) {}
 
   async start(): Promise<void> {
+    if (this.ctx.state === 'suspended') {
+      await this.ctx.resume()
+    }
     await this.ctx.audioWorklet.addModule('/worklets/capture-processor.js')
     this.vad = new VoiceActivityDetector({ sampleRate: this.ctx.sampleRate })
     this.node = new AudioWorkletNode(this.ctx, 'capture-processor', {

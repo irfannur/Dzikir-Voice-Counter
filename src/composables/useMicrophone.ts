@@ -84,6 +84,9 @@ export function useMicrophone() {
     }
 
     ctx = new AudioContext()
+    if (ctx.state === 'suspended') {
+      await ctx.resume()
+    }
     sampleRate.value = ctx.sampleRate
     source = ctx.createMediaStreamSource(stream)
     const hp = createHighPass(ctx)
