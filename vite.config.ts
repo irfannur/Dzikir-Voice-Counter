@@ -70,4 +70,15 @@ export default defineConfig({
   worker: {
     format: 'es',
   },
+
+  server: {
+    proxy: {
+      '/hf': {
+        target: 'https://huggingface.co',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/hf/, ''),
+        followRedirects: true,
+      },
+    },
+  },
 })

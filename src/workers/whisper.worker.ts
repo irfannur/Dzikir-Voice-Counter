@@ -20,6 +20,16 @@ const post = (m: unknown) => (self as unknown as Worker).postMessage(m)
 async function load(req: LoadReq) {
   const { pipeline, env } = await import('@huggingface/transformers')
 
+  // Support custom model host via Vite env variable (e.g. Cloudflare R2 bucket or mirror)
+  // Default to the same-origin proxy (/hf/) to bypass ISP/DNS blocks on Hugging Face
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const customHost = (import.meta as any).env?.VITE_MODEL_BASE_URL as string | undefined
+  if (customHost) {
+    env.remoteHost = customHost.endsWith('/') ? customHost : `${customHost}/`
+  } else {
+    env.remoteHost = new URL('/hf/', self.location.origin).href
+  }
+
   // Check if local model files exist in /models/<model_id>/ (e.g. from public/models)
   // Must return 200/206 and be JSON (not an HTML SPA 404 fallback like on Cloudflare Pages)
   try {
