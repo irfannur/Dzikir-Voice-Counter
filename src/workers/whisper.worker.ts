@@ -19,7 +19,14 @@ const post = (m: unknown) => (self as unknown as Worker).postMessage(m)
 
 async function load(req: LoadReq) {
   const { pipeline, env } = await import('@huggingface/transformers')
-  env.allowLocalModels = false
+
+  // Check if local model files exist in /models/<model_id>/ (e.g. from public/models)
+  try {
+    const localCheck = await fetch(`/models/${req.model}/config.json`, { method: 'HEAD' })
+    env.allowLocalModels = localCheck.ok
+  } catch {
+    env.allowLocalModels = false
+  }
 
   // Prefer locally served ONNX runtime files (copied by scripts/copy-ort-wasm.mjs)
   // so inference does not depend on a CDN once the PWA has cached them.
@@ -80,6 +87,10 @@ self.onmessage = (e: MessageEvent<Req>) => {
   chain = chain
     .then(() => (req.type === 'load' ? load(req) : transcribe(req)))
     .catch((err: unknown) => {
-      post({ id: req.id, type: 'error', message: err instanceof Error ? err.message : String(err) })
+      let message = err instanceof Error ? err.message : String(err)
+      if (message.includes('Failed to fetch')) {
+        message = 'Failed to fetch (Koneksi ke Hugging Face gagal/diblokir. Jalankan "npm run download:model" di terminal untuk menggunakan model offline, atau gunakan VPN/Secure DNS).'
+      }
+      post({ id: req.id, type: 'error', message })
     })
 }

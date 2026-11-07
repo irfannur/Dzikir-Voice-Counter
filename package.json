@@ -9,6 +9,7 @@
     "preview": "vite preview",
     "test": "vitest run",
     "typecheck": "vue-tsc --noEmit",
+    "download:model": "node scripts/download-model.mjs",
     "postinstall": "node scripts/copy-ort-wasm.mjs"
   },
   "dependencies": {
