@@ -68,26 +68,36 @@ obstacle. If you still want to avoid depending on `huggingface.co` reachability/
 your users (e.g. an ISP that blocks or throttles it), host the model yourself on **Cloudflare
 R2**, which has no per-file size limit (unlike Pages static assets) and no egress fees:
 
-1. Download the model files locally, in the exact layout Transformers.js expects:
+1. Download the model files locally:
    ```bash
    npm run download:model   # writes to public/models/onnx-community/whisper-tiny/
    ```
-2. Create an R2 bucket (Cloudflare dashboard → R2) and enable public access, or attach a
-   custom domain to it.
-3. Upload the downloaded folder, keeping the `onnx-community/whisper-tiny/resolve/main/...`
-   path structure, e.g. with Wrangler:
+2. In the Cloudflare dashboard, create an R2 bucket (e.g. `voice-dzikir-models`) and enable
+   public access ("Allow Access" → gives you a `https://pub-xxxx.r2.dev` URL), or attach a
+   custom domain. Under the bucket's **Settings → CORS Policy**, add a rule allowing `GET`
+   from your Pages domain (or `*` while testing).
+3. Log in to Wrangler once: `npx wrangler login` (opens a browser to authorize).
+4. Upload the files with the included script. It rewrites each local path into the layout
+   Transformers.js expects on the server (`<model_id>/resolve/main/<file>`, which the local
+   download omits), so **do not** upload the folder as-is with a plain recursive copy:
    ```bash
-   npx wrangler r2 object put <bucket>/onnx-community/whisper-tiny --file public/models/onnx-community/whisper-tiny -r
+   node scripts/upload-to-r2.mjs voice-dzikir-models
    ```
-   (or drag-and-drop the folder in the R2 dashboard, keeping the same relative paths).
-4. In your R2 bucket's CORS settings, allow `GET` from your Pages domain (or `*`).
-5. In the Cloudflare Pages project's build environment variables, set:
+5. In the Cloudflare Pages project's build environment variables (**Settings → Environment
+   variables**), add:
    ```
-   VITE_MODEL_BASE_URL = https://<your-bucket-public-url>/
+   VITE_MODEL_BASE_URL = https://pub-xxxx.r2.dev/
    ```
-6. Redeploy. The worker will use this host directly (no Hugging Face, no `/hf/` proxy needed)
-   and validates it the same way, so a misconfiguration still surfaces a clear error rather
-   than this one.
+   (your bucket's public URL, with a trailing slash), then trigger a new deployment — an env
+   var change does not rebuild existing deployments automatically.
+6. Verify directly before testing in the app:
+   ```
+   https://pub-xxxx.r2.dev/onnx-community/whisper-tiny/resolve/main/config.json
+   ```
+   This must show JSON. If it 404s, re-check step 4 uploaded successfully (the script prints
+   `GAGAL` for any file that failed). The worker uses this host directly once set (no Hugging
+   Face, no `/hf/` proxy needed), validating it the same way, so a misconfiguration still
+   surfaces a clear error instead of the JSON-parse one.
 
 Fonts: place `Amiri-Regular.woff2` and `Inter-Variable.woff2` (both OFL) in `public/fonts/`; otherwise installed fonts are used.
 

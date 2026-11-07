@@ -10,6 +10,7 @@
     "test": "vitest run",
     "typecheck": "vue-tsc --noEmit",
     "download:model": "node scripts/download-model.mjs",
+    "upload:model": "node scripts/upload-to-r2.mjs",
     "postinstall": "node scripts/copy-ort-wasm.mjs"
   },
   "dependencies": {
