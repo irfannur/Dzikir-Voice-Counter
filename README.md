@@ -28,6 +28,67 @@ npm test           # engine, VAD and resample unit tests (vitest)
 npm run build
 ```
 
+## Troubleshooting: "Could not load: Unexpected token '<', \"<!doctype \"... is not valid JSON"
+
+This means the model loader fetched a URL expecting JSON (e.g. `config.json`) and got an
+HTML page back instead. It is **not** related to Cloudflare Pages' 25 MiB per-file limit —
+that limit only applies to files *you deploy* as static assets; it does not apply to the
+model files, which the browser fetches at runtime from Hugging Face (or a proxy/R2), never
+from your own deployed `dist`. The symptom comes from one of two places:
+
+1. **The old `public/models/` local-model check.** Earlier versions of `whisper.worker.ts`
+   probed `/models/<id>/config.json` on your own site. `public/models/` is gitignored (its
+   files are far too large to deploy as Pages assets anyway), so that path never exists in
+   production, and Cloudflare Pages' automatic SPA fallback answers it with `index.html`
+   (status 200, `text/html`) instead of a 404 — which is exactly the HTML this error is
+   choking on. **Fixed:** the worker no longer checks a local path; it always resolves a
+   remote host first (see below) and validates the response before using it.
+2. **The `/hf/` proxy (`functions/hf/[[path]].ts`) not actually running.** This Cloudflare
+   Pages Function exists to work around ISPs that block `huggingface.co` directly. If Pages
+   Functions aren't active for your deployment, a request to `/hf/...` is just another
+   unmatched route and gets the same `index.html` fallback. Test it directly:
+   ```
+   https://<your-site>.pages.dev/hf/onnx-community/whisper-tiny/resolve/main/config.json
+   ```
+   If that shows JSON, the proxy works. If it shows your app's HTML, Pages Functions are not
+   being picked up — check that `functions/` sits at the repository root (same level as
+   `src/`) and matches the project's configured root directory in the Cloudflare dashboard,
+   and check the Functions tab/logs for that deployment.
+
+With the fix in this repo, `whisper.worker.ts` now tries Hugging Face directly first, then
+the `/hf/` proxy, and only uses whichever one answers with real JSON — each candidate is
+validated before use, so a misconfigured proxy now produces a clear, actionable error
+instead of the cryptic JSON-parse message.
+
+### Large model files on a slow/blocked connection (recommended: Cloudflare R2)
+
+The actual ~100 MB file is a model weight file (e.g. `encoder_model.onnx`), fetched directly
+by the browser, not deployed by you — so Cloudflare Pages' 25 MiB limit was never really the
+obstacle. If you still want to avoid depending on `huggingface.co` reachability/speed for
+your users (e.g. an ISP that blocks or throttles it), host the model yourself on **Cloudflare
+R2**, which has no per-file size limit (unlike Pages static assets) and no egress fees:
+
+1. Download the model files locally, in the exact layout Transformers.js expects:
+   ```bash
+   npm run download:model   # writes to public/models/onnx-community/whisper-tiny/
+   ```
+2. Create an R2 bucket (Cloudflare dashboard → R2) and enable public access, or attach a
+   custom domain to it.
+3. Upload the downloaded folder, keeping the `onnx-community/whisper-tiny/resolve/main/...`
+   path structure, e.g. with Wrangler:
+   ```bash
+   npx wrangler r2 object put <bucket>/onnx-community/whisper-tiny --file public/models/onnx-community/whisper-tiny -r
+   ```
+   (or drag-and-drop the folder in the R2 dashboard, keeping the same relative paths).
+4. In your R2 bucket's CORS settings, allow `GET` from your Pages domain (or `*`).
+5. In the Cloudflare Pages project's build environment variables, set:
+   ```
+   VITE_MODEL_BASE_URL = https://<your-bucket-public-url>/
+   ```
+6. Redeploy. The worker will use this host directly (no Hugging Face, no `/hf/` proxy needed)
+   and validates it the same way, so a misconfiguration still surfaces a clear error rather
+   than this one.
+
 Fonts: place `Amiri-Regular.woff2` and `Inter-Variable.woff2` (both OFL) in `public/fonts/`; otherwise installed fonts are used.
 
 ## Pipeline

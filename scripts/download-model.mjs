@@ -3,6 +3,13 @@ import { dirname, join } from 'node:path'
 import { Readable } from 'node:stream'
 import { pipeline } from 'node:stream/promises'
 
+// Downloads the model files to disk under the SAME path layout Transformers.js
+// expects (`<model_id>/resolve/main/<file>`). Do not deploy this folder as a
+// Cloudflare Pages static asset: the .onnx weight files are well over the 25 MiB
+// per-file limit Pages enforces on deployed assets (public/models is gitignored
+// for this reason). Instead, upload the downloaded folder to Cloudflare R2 (no
+// per-file size limit) and point VITE_MODEL_BASE_URL at the bucket's public URL.
+// See the "Hosting the model yourself (Cloudflare R2)" section in README.md.
 const MODEL_ID = 'onnx-community/whisper-tiny'
 const BASE_URL = `https://huggingface.co/${MODEL_ID}/resolve/main/`
 const TARGET_DIR = join('public', 'models', MODEL_ID)

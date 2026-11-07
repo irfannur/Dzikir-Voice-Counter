@@ -3,6 +3,9 @@
  * Speech recognition worker (Transformers.js + Whisper). Keeps model loading and
  * inference off the UI thread. All audio stays in the browser; the only network
  * traffic is the one-time model download (and ONNX runtime files if not bundled).
+ *
+ * Model files are fetched over the network at runtime, never deployed as a Pages
+ * static asset, so Cloudflare Pages' 25 MiB per-file limit does not apply to them.
  */
 type Device = 'webgpu' | 'wasm'
 type LoadReq = { id: number; type: 'load'; model: string; device: Device }
@@ -17,28 +20,66 @@ let chain: Promise<void> = Promise.resolve()
 
 const post = (m: unknown) => (self as unknown as Worker).postMessage(m)
 
-async function load(req: LoadReq) {
-  const { pipeline, env } = await import('@huggingface/transformers')
+/**
+ * Probes `${host}${model}/resolve/main/config.json` and returns ok only if it looks
+ * like real model JSON. Cloudflare Pages (and most static hosts) answer an unknown
+ * path with their SPA fallback page: status 200, content-type text/html. Trusting
+ * that response is exactly what produces "Unexpected token '<' ... is not valid JSON"
+ * deep inside the model loader, so it is rejected here instead, with a clear reason.
+ */
+async function probeHost(host: string, model: string): Promise<{ ok: true } | { ok: false; reason: string }> {
+  const url = `${host}${model}/resolve/main/config.json`
+  let res: Response
+  try {
+    res = await fetch(url, { headers: { Accept: 'application/json' } })
+  } catch (e) {
+    return { ok: false, reason: `tidak bisa dihubungi (${(e as Error).message})` }
+  }
+  if (!res.ok) return { ok: false, reason: `HTTP ${res.status}` }
+  const ct = res.headers.get('content-type') || ''
+  if (ct.includes('text/html')) return { ok: false, reason: 'mengembalikan halaman HTML, bukan file model' }
+  return { ok: true }
+}
 
-  // Support custom model host via Vite env variable (e.g. Cloudflare R2 bucket or mirror)
-  // Default to the same-origin proxy (/hf/) to bypass ISP/DNS blocks on Hugging Face
+async function resolveRemoteHost(model: string): Promise<string> {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const customHost = (import.meta as any).env?.VITE_MODEL_BASE_URL as string | undefined
   if (customHost) {
-    env.remoteHost = customHost.endsWith('/') ? customHost : `${customHost}/`
-  } else {
-    env.remoteHost = new URL('/hf/', self.location.origin).href
+    const host = customHost.endsWith('/') ? customHost : `${customHost}/`
+    const probe = await probeHost(host, model)
+    if (probe.ok) return host
+    throw new Error(`Host model kustom (${host}) ${probe.reason}. Periksa VITE_MODEL_BASE_URL.`)
   }
 
-  // Check if local model files exist in /models/<model_id>/ (e.g. from public/models)
-  // Must return 200/206 and be JSON (not an HTML SPA 404 fallback like on Cloudflare Pages)
-  try {
-    const localCheck = await fetch(`/models/${req.model}/config.json`, { method: 'GET', headers: { Range: 'bytes=0-10' } })
-    const ct = localCheck.headers.get('content-type') || ''
-    env.allowLocalModels = (localCheck.ok || localCheck.status === 206) && !ct.includes('text/html')
-  } catch {
-    env.allowLocalModels = false
+  // Try Hugging Face directly first (fewer moving parts), then the same-origin
+  // /hf/ proxy (functions/hf/[[path]].ts) which helps when an ISP blocks huggingface.co.
+  const directHost = 'https://huggingface.co/'
+  const proxyHost = new URL('/hf/', self.location.origin).href
+  const attempts: { label: string; host: string }[] = [
+    { label: 'Hugging Face langsung', host: directHost },
+    { label: 'proxy /hf/', host: proxyHost },
+  ]
+
+  const failures: string[] = []
+  for (const a of attempts) {
+    const probe = await probeHost(a.host, model)
+    if (probe.ok) return a.host
+    failures.push(`${a.label}: ${probe.reason}`)
   }
+
+  throw new Error(
+    `Tidak bisa mengambil model dari Hugging Face maupun proxy /hf/. ${failures.join('; ')}. ` +
+      'Jika proxy /hf/ mengembalikan halaman HTML, Cloudflare Pages Functions mungkin belum aktif untuk deployment ini ' +
+      '(cek functions/hf/[[path]].ts dan Functions log di dashboard Cloudflare). ' +
+      'Alternatif: host file model sendiri di Cloudflare R2 (tidak kena batas 25 MB per file) dan set VITE_MODEL_BASE_URL. Lihat README.',
+  )
+}
+
+async function load(req: LoadReq) {
+  const { pipeline, env } = await import('@huggingface/transformers')
+
+  env.remoteHost = await resolveRemoteHost(req.model)
+  env.allowLocalModels = false // models are always fetched remotely (see env.remoteHost above)
 
   // Prefer locally served ONNX runtime files (copied by scripts/copy-ort-wasm.mjs)
   // so inference does not depend on a CDN once the PWA has cached them.
@@ -103,7 +144,7 @@ self.onmessage = (e: MessageEvent<Req>) => {
     .catch((err: unknown) => {
       let message = err instanceof Error ? err.message : String(err)
       if (message.includes('Failed to fetch')) {
-        message = 'Failed to fetch (Koneksi ke Hugging Face gagal/diblokir. Jalankan "npm run download:model" di terminal untuk menggunakan model offline, atau gunakan VPN/Secure DNS).'
+        message = 'Gagal terhubung ke jaringan saat mengunduh model. Periksa koneksi internet, lalu coba lagi.'
       }
       post({ id: req.id, type: 'error', message })
     })
