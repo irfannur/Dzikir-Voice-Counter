@@ -1,0 +1,54 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Fonts: drop Amiri / Inter .woff2 files into public/fonts/ (both are OFL licensed).
+   local() is tried first so the app still renders without bundled files. */
+@font-face {
+  font-family: 'Amiri';
+  src: local('Amiri'), url('/fonts/Amiri-Regular.woff2') format('woff2');
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Inter';
+  src: local('Inter'), url('/fonts/Inter-Variable.woff2') format('woff2');
+  font-display: swap;
+}
+
+@layer base {
+  body {
+    @apply bg-beige-50 text-forest-900 antialiased dark:bg-forest-900 dark:text-beige-100;
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+}
+
+@layer components {
+  .card {
+    @apply rounded-2xl border border-beige-200 bg-white/70 p-5 shadow-sm dark:border-forest-700 dark:bg-forest-800/60;
+  }
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-medium transition active:scale-95 disabled:opacity-40;
+  }
+  .btn-primary {
+    @apply btn bg-forest-700 text-white hover:bg-forest-600 dark:bg-emerald2 dark:hover:bg-emerald2/90;
+  }
+  .btn-ghost {
+    @apply btn border border-beige-200 bg-transparent hover:bg-beige-100 dark:border-forest-700 dark:hover:bg-forest-800;
+  }
+  .input {
+    @apply w-full rounded-xl border border-beige-200 bg-white px-3 py-2 text-sm outline-none focus:border-emerald2 dark:border-forest-700 dark:bg-forest-900;
+  }
+  .muted {
+    @apply text-forest-700/70 dark:text-beige-200/70;
+  }
+}
+
+@keyframes bump {
+  0% { transform: scale(1); }
+  40% { transform: scale(1.12); }
+  100% { transform: scale(1); }
+}
+.bump { animation: bump 0.25s ease-out; }
+@media (prefers-reduced-motion: reduce) {
+  .bump { animation: none; }
+}

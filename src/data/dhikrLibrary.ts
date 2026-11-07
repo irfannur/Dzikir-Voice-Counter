@@ -1,0 +1,60 @@
+import type { Dhikr } from '@/types'
+
+export const BUILTIN_DHIKR: Dhikr[] = [
+  {
+    id: 'subhanallah',
+    name: 'Subhanallah',
+    arabic: 'سُبْحَانَ اللَّهِ',
+    latin: 'Subhanallah',
+    translation: 'Maha Suci Allah',
+    keywords: ['subhanallah', 'subhanallohi', 'subhan allah', 'سبحان الله', 'سبحان اللة'],
+    defaultTarget: 33,
+  },
+  {
+    id: 'alhamdulillah',
+    name: 'Alhamdulillah',
+    arabic: 'الْحَمْدُ لِلَّهِ',
+    latin: 'Alhamdulillah',
+    translation: 'Segala puji bagi Allah',
+    keywords: ['alhamdulillah', 'alhamdulillahi', 'al hamdu lillah', 'الحمد لله', 'الحمد لله رب العالمين'],
+    defaultTarget: 33,
+  },
+  {
+    id: 'allahu-akbar',
+    name: 'Allahu Akbar',
+    arabic: 'اللَّهُ أَكْبَرُ',
+    latin: 'Allahu Akbar',
+    translation: 'Allah Maha Besar',
+    keywords: ['allahu akbar', 'allahuakbar', 'allahu akbaru', 'الله أكبر', 'الله اكبر'],
+    defaultTarget: 33,
+  },
+  {
+    id: 'astaghfirullah',
+    name: 'Astaghfirullah',
+    arabic: 'أَسْتَغْفِرُ اللَّهَ',
+    latin: 'Astaghfirullah',
+    translation: 'Aku memohon ampun kepada Allah',
+    keywords: ['astaghfirullah', 'astaghfirullaha', 'astagfirullah', 'استغفر الله', 'أستغفر الله'],
+    defaultTarget: 100,
+  },
+  {
+    id: 'la-ilaha-illallah',
+    name: 'La ilaha illallah',
+    arabic: 'لَا إِلَٰهَ إِلَّا اللَّهُ',
+    latin: 'La ilaha illallah',
+    translation: 'Tiada tuhan selain Allah',
+    keywords: ['la ilaha illallah', 'laa ilaaha illallah', 'la ilaha illa allah', 'لا إله إلا الله', 'لا اله الا الله'],
+    defaultTarget: 100,
+  },
+  {
+    id: 'la-hawla',
+    name: 'La hawla wa la quwwata illa billah',
+    arabic: 'لَا حَوْلَ وَلَا قُوَّةَ إِلَّا بِاللَّهِ',
+    latin: 'La hawla wa la quwwata illa billah',
+    translation: 'Tiada daya dan kekuatan kecuali dengan pertolongan Allah',
+    keywords: ['la hawla wa la quwwata illa billah', 'laa haula wala quwwata illa billah', 'لا حول ولا قوة إلا بالله'],
+    defaultTarget: 100,
+  },
+]
+
+export const TARGET_PRESETS = [33, 99, 100, 1000]
