@@ -49,6 +49,9 @@ if (files.length === 0) {
 
 console.log(`Mengunggah ${files.length} file ke bucket R2 "${bucket}"...\n`)
 
+// --remote is required: recent Wrangler versions otherwise write to a LOCAL simulated
+// R2 (.wrangler/state) and still exit 0, so the real bucket stays empty.
+//
 // shell: true is required on Windows: recent Node versions refuse to spawn .cmd/.bat
 // files (like npx.cmd) directly for security reasons and fail silently (no stderr,
 // just a spawn error) unless run through a shell. Safe here: every argument below is
@@ -58,7 +61,7 @@ for (const file of files) {
   const rel = relative(SOURCE_DIR, file).split(sep).join('/') // normalize Windows backslashes
   const key = `${KEY_PREFIX}/${rel}`
   process.stdout.write(`[upload] ${key} ... `)
-  const res = spawnSync('npx', ['wrangler', 'r2', 'object', 'put', `${bucket}/${key}`, '--file', file], {
+  const res = spawnSync('npx', ['wrangler', 'r2', 'object', 'put', `${bucket}/${key}`, '--file', file, '--remote'], {
     stdio: ['ignore', 'pipe', 'pipe'],
     shell: true,
   })

@@ -45,7 +45,9 @@ async function resolveRemoteHost(model: string): Promise<string> {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const customHost = (import.meta as any).env?.VITE_MODEL_BASE_URL as string | undefined
   if (customHost) {
-    const host = customHost.endsWith('/') ? customHost : `${customHost}/`
+    // Accepts absolute URLs or same-origin paths such as "/models/".
+    const resolved = new URL(customHost, self.location.origin).href
+    const host = resolved.endsWith('/') ? resolved : `${resolved}/`
     const probe = await probeHost(host, model)
     if (probe.ok) return host
     throw new Error(`Host model kustom (${host}) ${probe.reason}. Periksa VITE_MODEL_BASE_URL.`)

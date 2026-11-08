@@ -60,6 +60,21 @@ the `/hf/` proxy, and only uses whichever one answers with real JSON — each ca
 validated before use, so a misconfigured proxy now produces a clear, actionable error
 instead of the cryptic JSON-parse message.
 
+### Serving the R2 model through your own site (recommended; no r2.dev)
+
+The `pub-xxxx.r2.dev` URL is rate-limited, meant for development only, and can fail TLS on
+some networks (`NET::ERR_CERT_COMMON_NAME_INVALID`). Instead, serve the bucket from your Pages
+site with `functions/models/[[path]].ts`:
+
+1. Cloudflare dashboard -> Workers & Pages -> your project -> **Settings -> Bindings -> Add ->
+   R2 bucket**. Variable name `MODELS`, bucket `voice-dzikir-models`. Save.
+2. Set the build environment variable `VITE_MODEL_BASE_URL = /models/` (same-origin path).
+3. Redeploy (push a commit or Retry deployment).
+4. Check `https://<your-site>.pages.dev/models/onnx-community/whisper-tiny/resolve/main/config.json`
+   in the browser. It must show JSON.
+
+No CORS setup is needed because the files come from the same origin as the app.
+
 ### Large model files on a slow/blocked connection (recommended: Cloudflare R2)
 
 The actual ~100 MB file is a model weight file (e.g. `encoder_model.onnx`), fetched directly
