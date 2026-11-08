@@ -1,0 +1,17 @@
+{
+  // Cloudflare Worker with static assets. Bindings live here, not in the dashboard.
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "dzikir-voice-counter",
+  "main": "worker/index.ts",
+  "compatibility_date": "2025-06-01",
+  "assets": {
+    "directory": "./dist",
+    "binding": "ASSETS",
+    "not_found_handling": "single-page-application",
+    // Only these paths run the Worker script; everything else is served as static assets.
+    "run_worker_first": ["/models/*", "/hf/*"]
+  },
+  "r2_buckets": [
+    { "binding": "MODELS", "bucket_name": "voice-dzikir-models" }
+  ]
+}

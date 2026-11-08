@@ -62,18 +62,21 @@ instead of the cryptic JSON-parse message.
 
 ### Serving the R2 model through your own site (recommended; no r2.dev)
 
-The `pub-xxxx.r2.dev` URL is rate-limited, meant for development only, and can fail TLS on
-some networks (`NET::ERR_CERT_COMMON_NAME_INVALID`). Instead, serve the bucket from your Pages
-site with `functions/models/[[path]].ts`:
+This project deploys as a **Cloudflare Worker with static assets** (not classic Pages), so
+Pages Functions (`functions/`) are NOT used. `worker/index.ts` + `wrangler.jsonc` provide:
 
-1. Cloudflare dashboard -> Workers & Pages -> your project -> **Settings -> Bindings -> Add ->
-   R2 bucket**. Variable name `MODELS`, bucket `voice-dzikir-models`. Save.
-2. Set the build environment variable `VITE_MODEL_BASE_URL = /models/` (same-origin path).
-3. Redeploy (push a commit or Retry deployment).
-4. Check `https://<your-site>.pages.dev/models/onnx-community/whisper-tiny/resolve/main/config.json`
-   in the browser. It must show JSON.
+- `/models/*` -> files from the R2 bucket bound as `MODELS` (same-origin, Range-capable, no CORS needed)
+- `/hf/*` -> streaming proxy to huggingface.co
+- everything else -> the built app (SPA)
 
-No CORS setup is needed because the files come from the same origin as the app.
+R2 bindings are declared in `wrangler.jsonc` (the dashboard shows them read-only). Steps:
+
+1. Make sure the bucket name in `wrangler.jsonc` (`voice-dzikir-models`) matches yours and the
+   model files are uploaded (`node scripts/upload-to-r2.mjs <bucket>`).
+2. Set the build variable `VITE_MODEL_BASE_URL = /models/` (it is read at build time).
+3. Commit + push. The deploy command must be `npx wrangler deploy` (the Workers Builds default).
+4. Open `https://<your-site>.workers.dev/models/onnx-community/whisper-tiny/resolve/main/config.json`.
+   It must show JSON.
 
 ### Large model files on a slow/blocked connection (recommended: Cloudflare R2)
 
