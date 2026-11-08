@@ -19,10 +19,10 @@ export interface VadConfig {
 export const DEFAULT_VAD_CONFIG: Omit<VadConfig, 'sampleRate'> = {
   onMarginDb: 12,
   offMarginDb: 7,
-  hangoverMs: 600,
+  hangoverMs: 450,
   preRollMs: 200,
   minSpeechMs: 250,
-  maxSpeechMs: 12000,
+  maxSpeechMs: 6000,
   initialNoiseDb: -55,
 }
 

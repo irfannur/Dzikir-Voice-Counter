@@ -23,6 +23,8 @@ export const useCounterStore = defineStore('counter', () => {
   const rejected = ref(0)
   const manualCorrections = ref(0)
   const lastUtterance = ref('')
+  /** Last recognition events, newest first. Diagnostics for tuning thresholds. */
+  const debugLog = ref<{ at: number; text: string; durMs: number; latencyMs?: number; accepted: boolean; reason?: string; score: number }[]>([])
   const startedAt = ref(0)
   const elapsedMs = ref(0)
   const targetReached = ref(false)
@@ -67,6 +69,7 @@ export const useCounterStore = defineStore('counter', () => {
     engine.value = new DhikrCounterEngine(d, t)
     count.value = accepted.value = rejected.value = manualCorrections.value = 0
     lastUtterance.value = ''
+    debugLog.value = []
     targetReached.value = false
     accumulated = 0
     elapsedMs.value = 0
@@ -126,6 +129,10 @@ export const useCounterStore = defineStore('counter', () => {
     if (!engine.value || state.value !== 'running') return null
     const res = engine.value.handleSegment(seg)
     lastUtterance.value = seg.text
+    debugLog.value = [
+      { at: Date.now(), text: seg.text, durMs: Math.round(seg.endMs - seg.startMs), latencyMs: seg.latencyMs && Math.round(seg.latencyMs), accepted: res.accepted, reason: res.reason, score: Math.round(res.score * 100) / 100 },
+      ...debugLog.value,
+    ].slice(0, 15)
     status.value = res.accepted ? 'recognized' : 'unrecognized'
     sync()
     return res
@@ -164,7 +171,7 @@ export const useCounterStore = defineStore('counter', () => {
   }
 
   return {
-    dhikr, state, status, count, target, accepted, rejected, manualCorrections, lastUtterance,
+    dhikr, state, status, count, target, accepted, rejected, manualCorrections, lastUtterance, debugLog,
     elapsedMs, targetReached, saveError, progress,
     begin, pause, resume, setTarget, continueAfterTarget, increment, decrement, reset, submitSegment, setStatus, finish,
   }

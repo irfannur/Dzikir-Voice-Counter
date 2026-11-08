@@ -47,6 +47,8 @@ export interface RecognizedSegment {
   endMs: number
   /** Optional provider confidence 0..1. Never trusted on its own. */
   confidence?: number
+  /** Time the recognizer took for this segment (diagnostics only). */
+  latencyMs?: number
 }
 
 export type RejectReason =

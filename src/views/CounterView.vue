@@ -153,6 +153,16 @@ onBeforeUnmount(() => {
       <p class="text-sm muted" role="status">{{ statusText }}</p>
       <p v-if="counter.lastUtterance" class="text-xs muted">Last heard: {{ counter.lastUtterance }}</p>
       <p v-if="rec.autoError.value" class="text-xs text-red-700 dark:text-red-300">{{ rec.autoError.value }}</p>
+      <details class="text-left text-xs muted">
+        <summary class="cursor-pointer">Log pengenalan (debug)</summary>
+        <p v-if="!counter.debugLog.length" class="mt-1">Belum ada ucapan yang selesai diproses.</p>
+        <ul class="mt-1 space-y-1">
+          <li v-for="e in counter.debugLog" :key="e.at">
+            <span :class="e.accepted ? 'text-emerald-600' : 'text-red-600'">{{ e.accepted ? 'DIHITUNG' : 'DITOLAK ' + (e.reason ?? '') }}</span>
+            · "{{ e.text || '(kosong)' }}" · {{ e.durMs }} ms · skor {{ e.score }}<template v-if="e.latencyMs"> · proses {{ e.latencyMs }} ms</template>
+          </li>
+        </ul>
+      </details>
       <p v-if="rec.droppedCount.value" class="text-xs muted">{{ rec.droppedCount.value }} utterance(s) skipped because recognition fell behind.</p>
       <div v-if="mic.error.value" class="rounded-xl bg-red-50 p-3 text-left text-sm text-red-800 dark:bg-red-950/40 dark:text-red-200">
         {{ mic.error.value.help }}

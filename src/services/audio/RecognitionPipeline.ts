@@ -33,7 +33,7 @@ export class RecognitionPipeline {
     private readonly provider: SpeechRecognitionProvider,
     private readonly events: PipelineEvents,
     private readonly language = 'arabic',
-    private readonly maxQueue = 3,
+    private readonly maxQueue = 6,
   ) {}
 
   async start(): Promise<void> {
@@ -100,6 +100,7 @@ export class RecognitionPipeline {
             startMs: seg.speechStartMs,
             endMs: seg.speechEndMs,
             confidence: res.confidence,
+            latencyMs: res.latencyMs,
           })
         } catch (e) {
           this.events.onError((e as Error).message)
