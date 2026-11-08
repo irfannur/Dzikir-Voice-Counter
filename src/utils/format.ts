@@ -13,6 +13,6 @@ export function dayKey(ts: number): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 }
 
-export function formatDateTime(ts: number): string {
-  return new Date(ts).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })
+export function formatDateTime(ts: number, locale?: string): string {
+  return new Date(ts).toLocaleString(locale, { dateStyle: 'medium', timeStyle: 'short' })
 }

@@ -14,7 +14,7 @@ export const MODEL_OPTIONS: ModelOption[] = [
   { id: 'whisper-small', label: 'Whisper Small (multilingual)', hfId: 'onnx-community/whisper-small', approxMb: 250, note: 'Most accurate, heavy on phones' },
 ]
 
-export const DEFAULT_MODEL_ID = 'whisper-tiny'
+export const DEFAULT_MODEL_ID = 'whisper-base'
 
 export function getModelOption(id: string): ModelOption {
   return MODEL_OPTIONS.find((m) => m.id === id) ?? MODEL_OPTIONS[0]

@@ -73,7 +73,7 @@ describe('DhikrCounterEngine', () => {
   it('rejects too-short and too-long utterances', () => {
     const e = fresh()
     expect(e.handleSegment(seg('subhanallah', 1000, 100)).reason).toBe('too-short')
-    expect(e.handleSegment(seg('subhanallah', 1000, 20000)).reason).toBe('too-long')
+    expect(e.handleSegment(seg('subhanallah', 1000, 35000)).reason).toBe('too-long')
   })
 
   it('does not trust provider confidence alone, but honors low confidence', () => {
@@ -113,5 +113,28 @@ describe('DhikrCounterEngine', () => {
     e.reset()
     expect(e.count).toBe(0)
     expect(e.stats).toEqual({ accepted: 0, rejected: 0 })
+  })
+
+  it('counts each repetition when several are heard as one utterance', () => {
+    const e = fresh()
+    const r = e.handleSegment(seg('subhanallah subhanallah subhanallah', 1000, 3600))
+    expect(r.accepted).toBe(true)
+    expect(r.repetitions).toBe(3)
+    expect(e.count).toBe(3)
+    expect(e.stats.accepted).toBe(3)
+  })
+
+  it('caps repetitions by how many could fit in the audio', () => {
+    const e = fresh()
+    // 5 repetitions claimed in 1.3 s of audio: at most 2 fit, and 5 would not match anyway
+    const r = e.handleSegment(seg('subhanallah subhanallah subhanallah subhanallah subhanallah', 1000, 1300))
+    expect(r.accepted).toBe(false)
+    expect(e.count).toBe(0)
+  })
+
+  it('does not add repetitions for repeated unrelated speech', () => {
+    const e = fresh()
+    expect(e.handleSegment(seg('thank you thank you thank you', 1000, 3000)).accepted).toBe(false)
+    expect(e.count).toBe(0)
   })
 })

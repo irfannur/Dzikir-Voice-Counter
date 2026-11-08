@@ -1,13 +1,15 @@
 <script setup lang="ts">
 import { RouterLink } from 'vue-router'
+import { useI18n, type MessageKey } from '@/i18n'
 import { BookOpen, History, Home, Mic, Settings } from 'lucide-vue-next'
 
-const items = [
-  { to: '/', label: 'Home', icon: Home },
-  { to: '/library', label: 'Library', icon: BookOpen },
-  { to: '/calibration', label: 'Mic', icon: Mic },
-  { to: '/history', label: 'History', icon: History },
-  { to: '/settings', label: 'Settings', icon: Settings },
+const { t } = useI18n()
+const items: { to: string; label: MessageKey; icon: unknown }[] = [
+  { to: '/', label: 'nav.home', icon: Home },
+  { to: '/library', label: 'nav.library', icon: BookOpen },
+  { to: '/calibration', label: 'nav.mic', icon: Mic },
+  { to: '/history', label: 'nav.history', icon: History },
+  { to: '/settings', label: 'nav.settings', icon: Settings },
 ]
 </script>
 
@@ -24,7 +26,7 @@ const items = [
           active-class="!text-forest-700 dark:!text-emerald2 font-semibold"
         >
           <component :is="i.icon" :size="20" />
-          {{ i.label }}
+          {{ t(i.label) }}
         </RouterLink>
       </li>
     </ul>

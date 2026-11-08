@@ -1,7 +1,8 @@
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
 import type { Dhikr, RecognizedSegment, SegmentResult, SessionRecord } from '@/types'
-import { DhikrCounterEngine } from '@/services/counter/DhikrCounterEngine'
+import { DhikrCounterEngine, SENSITIVITY_PRESETS } from '@/services/counter/DhikrCounterEngine'
+import { useSettingsStore } from '@/stores/settingsStore'
 import { db } from '@/database/indexedDb'
 
 export type SessionState = 'idle' | 'running' | 'paused'
@@ -24,7 +25,7 @@ export const useCounterStore = defineStore('counter', () => {
   const manualCorrections = ref(0)
   const lastUtterance = ref('')
   /** Last recognition events, newest first. Diagnostics for tuning thresholds. */
-  const debugLog = ref<{ at: number; text: string; durMs: number; latencyMs?: number; accepted: boolean; reason?: string; score: number }[]>([])
+  const debugLog = ref<{ at: number; text: string; durMs: number; latencyMs?: number; accepted: boolean; reason?: string; score: number; reps?: number }[]>([])
   const startedAt = ref(0)
   const elapsedMs = ref(0)
   const targetReached = ref(false)
@@ -66,7 +67,7 @@ export const useCounterStore = defineStore('counter', () => {
   function begin(d: Dhikr, t: number) {
     dhikr.value = d
     target.value = t
-    engine.value = new DhikrCounterEngine(d, t)
+    engine.value = new DhikrCounterEngine(d, t, SENSITIVITY_PRESETS[useSettingsStore().sensitivity])
     count.value = accepted.value = rejected.value = manualCorrections.value = 0
     lastUtterance.value = ''
     debugLog.value = []
@@ -130,12 +131,16 @@ export const useCounterStore = defineStore('counter', () => {
     const res = engine.value.handleSegment(seg)
     lastUtterance.value = seg.text
     debugLog.value = [
-      { at: Date.now(), text: seg.text, durMs: Math.round(seg.endMs - seg.startMs), latencyMs: seg.latencyMs && Math.round(seg.latencyMs), accepted: res.accepted, reason: res.reason, score: Math.round(res.score * 100) / 100 },
+      { at: Date.now(), text: seg.text, durMs: Math.round(seg.endMs - seg.startMs), latencyMs: seg.latencyMs && Math.round(seg.latencyMs), accepted: res.accepted, reason: res.reason, score: Math.round(res.score * 100) / 100, reps: res.repetitions },
       ...debugLog.value,
     ].slice(0, 15)
     status.value = res.accepted ? 'recognized' : 'unrecognized'
     sync()
     return res
+  }
+
+  function applySensitivity() {
+    engine.value?.updateConfig(SENSITIVITY_PRESETS[useSettingsStore().sensitivity])
   }
 
   function setStatus(s: RecognitionStatus) {
@@ -173,6 +178,6 @@ export const useCounterStore = defineStore('counter', () => {
   return {
     dhikr, state, status, count, target, accepted, rejected, manualCorrections, lastUtterance, debugLog,
     elapsedMs, targetReached, saveError, progress,
-    begin, pause, resume, setTarget, continueAfterTarget, increment, decrement, reset, submitSegment, setStatus, finish,
+    begin, pause, resume, setTarget, continueAfterTarget, increment, decrement, reset, submitSegment, setStatus, applySensitivity, finish,
   }
 })

@@ -121,11 +121,22 @@ Fonts: place `Amiri-Regular.woff2` and `Inter-Variable.woff2` (both OFL) in `pub
 
 ## Pipeline
 
-mic -> high-pass -> AudioWorklet (`public/worklets/capture-processor.js`) -> `VoiceActivityDetector` -> resample to 16 kHz -> queue (max 3, oldest dropped) -> `whisper.worker.ts` -> `counterStore.submitSegment` -> `DhikrCounterEngine`.
+mic -> high-pass -> AudioWorklet (`public/worklets/capture-processor.js`) -> `VoiceActivityDetector` -> resample to 16 kHz -> queue (max 6, merged in batches) -> `whisper.worker.ts` -> `counterStore.submitSegment` -> `DhikrCounterEngine`.
 
 The engine counts a segment only if it is not paused, has a sane duration, is not a duplicate, is outside the cooldown, passes the provider confidence check (if provided), and its normalized transcript closely matches a reference form with limited extra speech. One accepted segment = one count. Timestamps passed to the engine are the voiced part only, so cooldown/duration rules are not skewed by VAD padding.
 
-Known limitation: one utterance containing several chained repetitions is rejected as `extra-speech`, not counted multiple times.
+One utterance that contains several chained repetitions (e.g. "subhanallah subhanallah subhanallah" said without a pause) is counted as N repetitions (max 10, and no more than one per 500 ms of speech). Queued segments are merged into one Whisper call (up to ~20 s) so the model stays light when it falls behind.
+
+## Language / Bahasa
+
+The whole UI is available in Indonesian and English (`src/i18n/id.ts`, `en.ts`). Switch with the ID | EN buttons at the top or in Settings. Default follows the browser language.
+
+## Voice counting tips
+
+- Default model is now **Base** (more accurate than Tiny for Arabic dhikr). Change it in the Counter screen or Settings. If you previously chose Tiny, it stays selected until you change it.
+- Settings -> Sensitivity: *Strict* / *Normal* / *Lenient*. If nothing is counted, try *Lenient*.
+- The Counter screen has a debug log (last 15 segments: transcript, duration, latency, reason). Use it to see what the model heard.
+- Optional: host Base in R2 too: `npm run download:model -- onnx-community/whisper-base` then `node scripts/upload-to-r2.mjs <bucket> onnx-community/whisper-base`. If it is not in R2 the worker falls back to Hugging Face / the `/hf/` proxy.
 
 ## Things to verify first (assumptions I could not check)
 

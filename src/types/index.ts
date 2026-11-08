@@ -4,6 +4,8 @@ export interface Dhikr {
   arabic: string
   latin: string
   translation: string
+  /** English translation; custom dhikr only have `translation`. */
+  translationEn?: string
   /** Extra reference spellings (Arabic or Latin) a recognizer might output. */
   keywords: string[]
   defaultTarget?: number
@@ -67,4 +69,6 @@ export interface SegmentResult {
   reason?: RejectReason
   score: number
   count: number
+  /** How many repetitions this utterance added (accepted segments only). */
+  repetitions?: number
 }

@@ -9,7 +9,7 @@ export interface ValidatorConfig {
 }
 
 export const DEFAULT_VALIDATOR_CONFIG: ValidatorConfig = {
-  minScore: 0.78,
+  minScore: 0.68,
   maxExtraRatio: 0.6,
 }
 
@@ -41,6 +41,52 @@ export function bestSubstringDistance(pattern: string, text: string): number {
     }
     if (cur[m] < best) best = cur[m]
     ;[prev, cur] = [cur, prev]
+  }
+  return best
+}
+
+/** Plain Levenshtein distance between two strings. */
+export function editDistance(a: string, b: string): number {
+  if (a === b) return 0
+  if (!a.length) return b.length
+  if (!b.length) return a.length
+  let prev = Array.from({ length: b.length + 1 }, (_, i) => i)
+  let cur = new Array<number>(b.length + 1)
+  for (let i = 1; i <= a.length; i++) {
+    cur[0] = i
+    for (let j = 1; j <= b.length; j++) {
+      const cost = a[i - 1] === b[j - 1] ? 0 : 1
+      cur[j] = Math.min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + cost)
+    }
+    ;[prev, cur] = [cur, prev]
+  }
+  return prev[b.length]
+}
+
+/**
+ * Estimates how many back-to-back repetitions of a reference the transcript contains,
+ * by comparing it with the reference repeated n times (n = 2..maxN). Each repetition must
+ * still match: the whole string has to reach `minScore`, so one noisy word cannot add counts.
+ * Returns n = 0 when no repetition count fits.
+ */
+export function bestRepetitions(
+  transcript: string,
+  references: string[],
+  minScore: number,
+  maxN: number,
+): { n: number; score: number } {
+  const text = normalizeText(transcript)
+  let best = { n: 0, score: 0 }
+  if (!text || maxN < 2) return best
+  for (const ref of references) {
+    if (!ref.length) continue
+    const approx = Math.round(text.length / ref.length)
+    for (const n of [approx - 1, approx, approx + 1]) {
+      if (n < 2 || n > maxN) continue
+      const target = ref.repeat(n)
+      const score = 1 - editDistance(text, target) / Math.max(text.length, target.length)
+      if (score >= minScore && (score > best.score || (score === best.score && n > best.n))) best = { n, score }
+    }
   }
   return best
 }

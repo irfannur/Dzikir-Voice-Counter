@@ -12,6 +12,7 @@ app.use(router)
 
 const settings = useSettingsStore()
 settings.applyTheme()
+document.documentElement.lang = settings.language
 window
   .matchMedia('(prefers-color-scheme: dark)')
   .addEventListener('change', () => settings.theme === 'system' && settings.applyTheme())

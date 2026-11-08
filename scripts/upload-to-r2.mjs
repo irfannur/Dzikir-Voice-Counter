@@ -12,7 +12,8 @@ import { readdirSync, statSync } from 'node:fs'
 import { join, relative, sep } from 'node:path'
 import { spawnSync } from 'node:child_process'
 
-const MODEL_ID = 'onnx-community/whisper-tiny'
+// Usage: node scripts/upload-to-r2.mjs <bucket> [model-id]   (default model: onnx-community/whisper-tiny)
+const MODEL_ID = process.argv[3] ?? 'onnx-community/whisper-tiny'
 const SOURCE_DIR = join('public', 'models', MODEL_ID)
 const KEY_PREFIX = `${MODEL_ID}/resolve/main`
 

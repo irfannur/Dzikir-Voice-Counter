@@ -10,7 +10,8 @@ import { pipeline } from 'node:stream/promises'
 // for this reason). Instead, upload the downloaded folder to Cloudflare R2 (no
 // per-file size limit) and point VITE_MODEL_BASE_URL at the bucket's public URL.
 // See the "Hosting the model yourself (Cloudflare R2)" section in README.md.
-const MODEL_ID = 'onnx-community/whisper-tiny'
+// Usage: npm run download:model -- onnx-community/whisper-base   (default: whisper-tiny)
+const MODEL_ID = process.argv[2] ?? 'onnx-community/whisper-tiny'
 const BASE_URL = `https://huggingface.co/${MODEL_ID}/resolve/main/`
 const TARGET_DIR = join('public', 'models', MODEL_ID)
 

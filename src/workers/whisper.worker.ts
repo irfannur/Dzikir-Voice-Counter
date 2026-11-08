@@ -33,34 +33,28 @@ async function probeHost(host: string, model: string): Promise<{ ok: true } | { 
   try {
     res = await fetch(url, { headers: { Accept: 'application/json' } })
   } catch (e) {
-    return { ok: false, reason: `tidak bisa dihubungi (${(e as Error).message})` }
+    return { ok: false, reason: `unreachable (${(e as Error).message})` }
   }
   if (!res.ok) return { ok: false, reason: `HTTP ${res.status}` }
   const ct = res.headers.get('content-type') || ''
-  if (ct.includes('text/html')) return { ok: false, reason: 'mengembalikan halaman HTML, bukan file model' }
+  if (ct.includes('text/html')) return { ok: false, reason: 'returned an HTML page instead of model files' }
   return { ok: true }
 }
 
 async function resolveRemoteHost(model: string): Promise<string> {
+  // Candidate hosts in order: your own host (R2 via /models/), Hugging Face directly,
+  // then the same-origin /hf/ proxy (helps when an ISP blocks huggingface.co).
+  // A model that is not in your R2 bucket simply falls through to the next candidate.
+  const attempts: { label: string; host: string }[] = []
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const customHost = (import.meta as any).env?.VITE_MODEL_BASE_URL as string | undefined
   if (customHost) {
     // Accepts absolute URLs or same-origin paths such as "/models/".
     const resolved = new URL(customHost, self.location.origin).href
-    const host = resolved.endsWith('/') ? resolved : `${resolved}/`
-    const probe = await probeHost(host, model)
-    if (probe.ok) return host
-    throw new Error(`Host model kustom (${host}) ${probe.reason}. Periksa VITE_MODEL_BASE_URL.`)
+    attempts.push({ label: `own host (${resolved})`, host: resolved.endsWith('/') ? resolved : `${resolved}/` })
   }
-
-  // Try Hugging Face directly first (fewer moving parts), then the same-origin
-  // /hf/ proxy (functions/hf/[[path]].ts) which helps when an ISP blocks huggingface.co.
-  const directHost = 'https://huggingface.co/'
-  const proxyHost = new URL('/hf/', self.location.origin).href
-  const attempts: { label: string; host: string }[] = [
-    { label: 'Hugging Face langsung', host: directHost },
-    { label: 'proxy /hf/', host: proxyHost },
-  ]
+  attempts.push({ label: 'Hugging Face (direct)', host: 'https://huggingface.co/' })
+  attempts.push({ label: '/hf/ proxy', host: new URL('/hf/', self.location.origin).href })
 
   const failures: string[] = []
   for (const a of attempts) {
@@ -68,13 +62,7 @@ async function resolveRemoteHost(model: string): Promise<string> {
     if (probe.ok) return a.host
     failures.push(`${a.label}: ${probe.reason}`)
   }
-
-  throw new Error(
-    `Tidak bisa mengambil model dari Hugging Face maupun proxy /hf/. ${failures.join('; ')}. ` +
-      'Jika proxy /hf/ mengembalikan halaman HTML, Cloudflare Pages Functions mungkin belum aktif untuk deployment ini ' +
-      '(cek functions/hf/[[path]].ts dan Functions log di dashboard Cloudflare). ' +
-      'Alternatif: host file model sendiri di Cloudflare R2 (tidak kena batas 25 MB per file) dan set VITE_MODEL_BASE_URL. Lihat README.',
-  )
+  throw new Error(`Could not fetch model "${model}". ${failures.join('; ')}`)
 }
 
 async function load(req: LoadReq) {
@@ -146,7 +134,7 @@ self.onmessage = (e: MessageEvent<Req>) => {
     .catch((err: unknown) => {
       let message = err instanceof Error ? err.message : String(err)
       if (message.includes('Failed to fetch')) {
-        message = 'Gagal terhubung ke jaringan saat mengunduh model. Periksa koneksi internet, lalu coba lagi.'
+        message = 'Network request failed while downloading the model.'
       }
       post({ id: req.id, type: 'error', message })
     })

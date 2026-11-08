@@ -6,6 +6,7 @@ import { getModelOption } from '@/services/recognition/models'
 import { requestPersistentStorage } from '@/services/recognition/ModelManager'
 import { useCounterStore } from '@/stores/counterStore'
 import { useSettingsStore } from '@/stores/settingsStore'
+import { useI18n } from '@/i18n'
 
 type Mic = ReturnType<typeof useMicrophone>
 export type ModelLoadState = 'idle' | 'loading' | 'ready' | 'error'
@@ -24,6 +25,7 @@ export const activeBackend = ref('')
  */
 export function useDhikrRecognition(mic: Mic) {
   const settings = useSettingsStore()
+  const { t } = useI18n()
   const counter = useCounterStore()
   const auto = ref(false)
   const autoError = ref<string | null>(null)
@@ -74,7 +76,7 @@ export function useDhikrRecognition(mic: Mic) {
     autoError.value = null
     const graph = mic.getGraph()
     if (!graph || !sharedProvider || loadState.value !== 'ready') {
-      autoError.value = 'The speech model is not loaded or the microphone is off.'
+      autoError.value = t('auto.notLoaded')
       return false
     }
     pipeline = new RecognitionPipeline(graph.ctx, graph.node, sharedProvider, {

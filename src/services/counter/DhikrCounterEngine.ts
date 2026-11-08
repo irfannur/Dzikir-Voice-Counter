@@ -1,6 +1,7 @@
 import type { Dhikr, RecognizedSegment, RejectReason, SegmentResult, SessionStats } from '@/types'
 import {
   DEFAULT_VALIDATOR_CONFIG,
+  bestRepetitions,
   buildReferences,
   validateUtterance,
   type ValidatorConfig,
@@ -14,14 +15,26 @@ export interface EngineConfig extends ValidatorConfig {
   /** Utterance duration bounds. */
   minUtteranceMs: number
   maxUtteranceMs: number
+  /** Shortest plausible single repetition; caps how many repetitions one utterance may add. */
+  minRepetitionMs: number
 }
+
+const MAX_REPETITIONS = 10
 
 export const DEFAULT_ENGINE_CONFIG: EngineConfig = {
   ...DEFAULT_VALIDATOR_CONFIG,
   minConfidence: 0.3,
   cooldownMs: 350,
   minUtteranceMs: 250,
-  maxUtteranceMs: 12000,
+  maxUtteranceMs: 30000,
+  minRepetitionMs: 500,
+}
+
+/** User-facing sensitivity levels mapped to matching thresholds. */
+export const SENSITIVITY_PRESETS: Record<'strict' | 'normal' | 'lenient', Partial<EngineConfig>> = {
+  strict: { minScore: 0.78, maxExtraRatio: 0.4 },
+  normal: { minScore: 0.68, maxExtraRatio: 0.6 },
+  lenient: { minScore: 0.55, maxExtraRatio: 0.9 },
 }
 
 /**
@@ -82,12 +95,24 @@ export class DhikrCounterEngine {
     }
 
     const v = validateUtterance(seg.text, this.references, this.config)
-    if (!v.valid) return reject(v.reason ?? 'low-similarity', v.score)
+    let added = 1
+    let score = v.score
 
-    this.count++
-    this.stats.accepted++
+    // Several repetitions recited back to back and heard as one utterance:
+    // each complete repetition counts once, never more than the audio could hold.
+    const maxN = Math.min(MAX_REPETITIONS, Math.floor(duration / this.config.minRepetitionMs))
+    const multi = bestRepetitions(seg.text, this.references, this.config.minScore, maxN)
+    if (multi.n >= 2 && (!v.valid || v.extraRatio > 0.5)) {
+      added = multi.n
+      score = multi.score
+    } else if (!v.valid) {
+      return reject(v.reason ?? 'low-similarity', v.score)
+    }
+
+    this.count += added
+    this.stats.accepted += added
     this.lastAcceptedEndMs = seg.endMs
-    return { accepted: true, score: v.score, count: this.count }
+    return { accepted: true, score, count: this.count, repetitions: added }
   }
 
   manualIncrement(): void {

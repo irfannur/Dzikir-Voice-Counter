@@ -7,9 +7,11 @@ import { useAudioRecorder } from '@/composables/useAudioRecorder'
 import { useSettingsStore } from '@/stores/settingsStore'
 import { percentile } from '@/services/audio/AudioProcessor'
 import { db } from '@/database/indexedDb'
+import { useI18n, type MessageKey } from '@/i18n'
 import type { CalibrationResult, MicQuality } from '@/types'
 
 const settings = useSettingsStore()
+const { t } = useI18n()
 const mic = useMicrophone()
 const recorder = useAudioRecorder()
 
@@ -76,42 +78,41 @@ const qualityStyle: Record<MicQuality, string> = {
 
 <template>
   <section class="space-y-4">
-    <h1 class="text-2xl font-semibold">Voice Calibration</h1>
+    <h1 class="text-2xl font-semibold">{{ t('cal.title') }}</h1>
     <p class="text-sm muted">
-      Checks your microphone volume, background noise and signal clarity. It does not train or fine-tune any speech model.
-      A headset microphone is recommended but not required.
+      {{ t('cal.intro') }}
     </p>
 
     <div class="card space-y-3">
-      <label class="block text-sm">Microphone
+      <label class="block text-sm">{{ t('cal.microphone') }}
         <select v-model="deviceId" class="input mt-1">
-          <option value="">Default</option>
-          <option v-for="d in mic.devices.value" :key="d.deviceId" :value="d.deviceId">{{ d.label || 'Microphone' }}</option>
+          <option value="">{{ t('cal.default') }}</option>
+          <option v-for="d in mic.devices.value" :key="d.deviceId" :value="d.deviceId">{{ d.label || t('cal.micFallback') }}</option>
         </select>
       </label>
       <WaveformCanvas :analyser="mic.analyser.value" :active="mic.active.value" />
-      <p v-if="phase === 'noise'" class="text-sm">Stay quiet for a moment…</p>
-      <p v-else-if="phase === 'speech'" class="text-sm">Recite your dhikr 3 to 5 times at your normal pace…</p>
+      <p v-if="phase === 'noise'" class="text-sm">{{ t('cal.stayQuiet') }}</p>
+      <p v-else-if="phase === 'speech'" class="text-sm">{{ t('cal.recite') }}</p>
       <button class="btn-primary w-full" :disabled="phase === 'noise' || phase === 'speech'" @click="run">
-        <Mic :size="18" /> {{ phase === 'done' ? 'Run again' : 'Start test' }}
+        <Mic :size="18" /> {{ phase === 'done' ? t('cal.again') : t('cal.start') }}
       </button>
       <div v-if="mic.error.value" class="rounded-xl bg-red-50 p-3 text-sm text-red-800 dark:bg-red-950/40 dark:text-red-200">
-        {{ mic.error.value.message }} {{ mic.error.value.help }}
+        {{ t(`mic.err.${mic.error.value.kind}.msg` as MessageKey) }} {{ t(`mic.err.${mic.error.value.kind}.help` as MessageKey) }}
       </div>
     </div>
 
     <div v-if="recorder.sampleUrl.value" class="card space-y-2">
-      <p class="text-sm font-medium">Sample playback</p>
+      <p class="text-sm font-medium">{{ t('cal.playback') }}</p>
       <audio :src="recorder.sampleUrl.value" controls class="w-full" />
-      <p class="text-xs muted">Kept in memory only and discarded when you leave this page. Nothing is saved or uploaded.</p>
+      <p class="text-xs muted">{{ t('cal.playbackNote') }}</p>
     </div>
 
     <div v-if="result" class="card space-y-1">
-      <p class="text-sm muted">Result</p>
-      <p class="text-3xl font-semibold capitalize" :class="qualityStyle[result.quality]">{{ result.quality }}</p>
-      <p class="text-sm">Noise floor {{ result.noiseFloorDb.toFixed(0) }} dB · Speech peak {{ result.speechPeakDb.toFixed(0) }} dB · SNR {{ result.snrDb.toFixed(0) }} dB</p>
-      <p v-if="result.quality === 'poor'" class="text-sm muted">Try a quieter room, move closer to the microphone, or use a headset.</p>
-      <p v-if="saveError" class="text-sm text-red-700">Could not save: {{ saveError }}</p>
+      <p class="text-sm muted">{{ t('cal.result') }}</p>
+      <p class="text-3xl font-semibold " :class="qualityStyle[result.quality]">{{ t(('quality.' + result.quality) as MessageKey) }}</p>
+      <p class="text-sm">{{ t('cal.stats', { noise: result.noiseFloorDb.toFixed(0), peak: result.speechPeakDb.toFixed(0), snr: result.snrDb.toFixed(0) }) }}</p>
+      <p v-if="result.quality === 'poor'" class="text-sm muted">{{ t('cal.tipPoor') }}</p>
+      <p v-if="saveError" class="text-sm text-red-700">{{ t('cal.saveFail', { msg: saveError }) }}</p>
     </div>
   </section>
 </template>

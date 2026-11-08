@@ -1,8 +1,10 @@
 import { defineStore } from 'pinia'
 import { ref, watch } from 'vue'
 import { getModelOption } from '@/services/recognition/models'
+import { detectLanguage, type Lang } from '@/i18n/detect'
 
 export type ThemeSetting = 'light' | 'dark' | 'system'
+export type Sensitivity = 'strict' | 'normal' | 'lenient'
 const KEY = 'voice-dzikir:settings'
 
 interface Persisted {
@@ -13,6 +15,8 @@ interface Persisted {
   vibration: boolean
   stopMicAtTarget: boolean
   modelId: string
+  language: Lang
+  sensitivity: Sensitivity
 }
 
 const DEFAULTS: Persisted = {
@@ -22,7 +26,9 @@ const DEFAULTS: Persisted = {
   soundFeedback: false,
   vibration: true,
   stopMicAtTarget: false,
-  modelId: 'whisper-tiny',
+  modelId: 'whisper-base',
+  language: detectLanguage(),
+  sensitivity: 'normal',
 }
 
 function load(): Persisted {
@@ -43,6 +49,8 @@ export const useSettingsStore = defineStore('settings', () => {
   const stopMicAtTarget = ref(s.stopMicAtTarget)
   // Older saved values (e.g. the Phase 1 placeholder) fall back to the default model.
   const modelId = ref(getModelOption(s.modelId).id)
+  const language = ref<Lang>(s.language === 'en' || s.language === 'id' ? s.language : detectLanguage())
+  const sensitivity = ref<Sensitivity>(s.sensitivity ?? 'normal')
 
   function applyTheme() {
     const dark =
@@ -51,7 +59,7 @@ export const useSettingsStore = defineStore('settings', () => {
   }
 
   watch(
-    [theme, defaultTarget, deviceId, soundFeedback, vibration, stopMicAtTarget, modelId],
+    [theme, defaultTarget, deviceId, soundFeedback, vibration, stopMicAtTarget, modelId, language, sensitivity],
     () => {
       try {
         localStorage.setItem(
@@ -64,15 +72,18 @@ export const useSettingsStore = defineStore('settings', () => {
             vibration: vibration.value,
             stopMicAtTarget: stopMicAtTarget.value,
             modelId: modelId.value,
+            language: language.value,
+            sensitivity: sensitivity.value,
           }),
         )
       } catch {
         /* storage full or blocked: settings simply won't persist */
       }
       applyTheme()
+      document.documentElement.lang = language.value
     },
     { flush: 'sync' },
   )
 
-  return { theme, defaultTarget, deviceId, soundFeedback, vibration, stopMicAtTarget, modelId, applyTheme }
+  return { theme, defaultTarget, deviceId, soundFeedback, vibration, stopMicAtTarget, modelId, language, sensitivity, applyTheme }
 })
